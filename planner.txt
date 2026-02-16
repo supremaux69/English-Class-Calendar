@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Teacher Schedule & Planner</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --highlight: #dbeafe;
+            --danger: #ef4444;
+            --success: #10b981;
+            --note: #f59e0b;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .app-container {
+            display: flex; gap: 20px; width: 100%; max-width: 1200px; height: calc(100vh - 40px);
+        }
+        .panel {
+            background: var(--surface); border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 24px;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .calendar-panel { flex: 1; min-width: 320px; max-width: 380px; }
+        .details-panel { flex: 2; overflow-y: auto; }
+        
+        h2 { margin-top: 0; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 12px; }
+        
+        /* Calendar UI */
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-icon { background: var(--bg); border: none; cursor: pointer; font-size: 1rem; color: var(--text); padding: 8px 12px; border-radius: 8px; transition: 0.2s;}
+        .btn-icon:hover { background: var(--border); }
+        .cal-month { font-weight: bold; font-size: 1.2rem; }
+        
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; color: var(--text-light); font-size: 0.85rem; margin-bottom: 10px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        
+        .day {
+            aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-radius: 10px; cursor: pointer; font-size: 1rem; font-weight: 500; border: 2px solid transparent; transition: 0.2s;
+        }
+        .day:hover:not(.empty) { border-color: var(--primary); color: var(--primary); }
+        .day.has-classes { background-color: var(--highlight); color: var(--primary); font-weight: bold; position: relative; }
+        .day.has-classes::after { content: ''; position: absolute; bottom: 8px; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+        .day.selected { background-color: var(--primary); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
+        .day.selected.has-classes::after { background: white; }
+        .day.empty { cursor: default; }
+
+        /* Buttons */
+        .btn { padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 0.95rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: var(--bg); border-color: var(--text-light); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #047857; }
+
+        /* Classes List View */
+        .header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 16px; margin-bottom: 20px; }
+        .header-row h2 { border: none; padding: 0; margin: 0; }
+        
+        .class-card {
+            border: 2px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px;
+            cursor: pointer; transition: 0.2s; position: relative; background: white;
+        }
+        .class-card:hover { border-color: var(--primary); box-shadow: 0 6px 15px rgba(0,0,0,0.05); transform: translateY(-2px); }
+        .class-time { font-size: 0.9rem; color: var(--primary); font-weight: 700; margin-bottom: 8px; }
+        .class-title { font-size: 1.25rem; font-weight: 700; color: var(--text); margin: 0 0 10px 0; }
+        .class-location { display: inline-flex; align-items: center; background: var(--bg); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; color: var(--text-light); font-weight: 500; }
+
+        /* Lesson Plan View */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .back-link { color: var(--text-light); cursor: pointer; font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 8px; transition: 0.2s; border: none; background: none; }
+        .back-link:hover { color: var(--primary); }
+        
+        .lesson-header { margin-bottom: 30px; background: var(--bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .lesson-title { font-size: 1.6rem; font-weight: 800; margin: 0 0 10px 0; color: var(--text); }
+        .lesson-meta { color: var(--text-light); font-size: 1rem; font-weight: 500; display: flex; gap: 16px; }
+
+        .timeline { border-left: 3px solid var(--border); margin-left: 12px; padding-left: 28px; position: relative; }
+        .plan-step { margin-bottom: 32px; position: relative; }
+        .plan-step::before { content: ''; position: absolute; left: -37px; top: 4px; width: 14px; height: 14px; background: white; border: 3px solid var(--primary); border-radius: 50%; }
+        
+        .step-duration { display: inline-block; background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; }
+        .step-duration.note-style { background: var(--note); color: #fff; }
+        .step-duration.note-style::before { content: '⚠️ '; }
+        
+        .step-activity { color: var(--text); line-height: 1.6; font-size: 1.05rem; white-space: pre-wrap; }
+
+        /* Form Inputs */
+        .form-row { display: flex; gap: 16px; margin-bottom: 16px; }
+        .form-group { flex: 1; }
+        label { display: block; font-size: 0.85rem; color: var(--text-light); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; box-sizing: border-box; transition: 0.2s; background: var(--surface); color: var(--text); }
+        input[type="text"]:focus, textarea:focus { border-color: var(--primary); outline: none; background: white; }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .edit-step { background: var(--bg); padding: 20px; border-radius: 12px; margin-bottom: 16px; position: relative; border: 1px solid var(--border); }
+        .remove-step { position: absolute; top: 16px; right: 16px; background: var(--danger); color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; }
+        .remove-step:hover { background: #b91c1c; }
+
+        .empty-state { text-align: center; color: var(--text-light); padding: 40px 20px; background: var(--bg); border-radius: 12px; border: 2px dashed var(--border); font-size: 1.05rem; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="panel calendar-panel">
+        <h2>🗓️ Calendar</h2>
+        <div class="cal-header">
+            <button class="btn-icon" onclick="changeMonth(-1)">&#10094; Prev</button>
+            <div class="cal-month" id="monthDisplay"></div>
+            <button class="btn-icon" onclick="changeMonth(1)">Next &#10095;</button>
+        </div>
+        <div class="weekdays">
+            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+        </div>
+        <div class="days-grid" id="calendarDays"></div>
+        <div style="margin-top: auto; font-size: 0.85rem; color: var(--text-light); text-align: center; padding-top: 20px;">
+            Edits are automatically saved to your browser!
+        </div>
+    </div>
+
+    <div class="panel details-panel">
+        
+        <div id="classesView">
+            <div class="header-row">
+                <h2 id="selectedDateHeader">Select a Date</h2>
+                <button class="btn btn-primary" onclick="addNewClass()">+ Add Class</button>
+            </div>
+            <div id="classesContainer">
+                <div class="empty-state">Click on a highlighted date in the calendar to view scheduled classes.</div>
+            </div>
+        </div>
+
+        <div id="lessonPlanView" class="hidden">
+            <div class="top-nav">
+                <button class="back-link" onclick="showClassesView()">&#10094; Back to Classes</button>
+                <button class="btn btn-outline" onclick="openEditMode()">✏️ Edit Schedule</button>
+            </div>
+            
+            <div class="lesson-header">
+                <h2 class="lesson-title" id="lpTitle"></h2>
+                <div class="lesson-meta" id="lpMeta"></div>
+            </div>
+            <div class="timeline" id="lpTimeline"></div>
+        </div>
+
+        <div id="editPlanView" class="hidden">
+            <div class="top-nav">
+                <button class="back-link" onclick="cancelEdit()">&#10094; Cancel Editing</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-danger" onclick="deleteCurrentClass()">🗑️ Delete</button>
+                    <button class="btn btn-success" onclick="saveClass()">💾 Save Class</button>
+                </div>
+            </div>
+            
+            <div class="lesson-header" style="background: white;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Class Title / Group</label>
+                    <input type="text" id="editTitle" placeholder="e.g. Penguin 1 (1Y-2Y)">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Time Schedule</label>
+                        <input type="text" id="editTime" placeholder="e.g. 10:00 - 10:15">
+                    </div>
+                    <div class="form-group">
+                        <label>Location / Trainer Details</label>
+                        <input type="text" id="editLocation" placeholder="e.g. Castanet @ Sakaemachi">
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-top: 30px;">Lesson Activities</h3>
+            <div id="editStepsContainer"></div>
+            
+            <button class="btn btn-outline" style="width: 100%; justify-content: center; padding: 16px; border-style: dashed;" onclick="addStepInput()">+ Add Activity Step</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========================================================
+    // --- NOTEBOOK DATA & MEMORY STORAGE ---
+    // ========================================================
+    const defaultData = {
+        "2026-02-18": [
+            {
+                "title": "Penguin 1 (1Y-2Y)",
+                "time": "10:00 - 10:15",
+                "location": "Castanet @ Sakaemachi | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro song + monthly song"},
+                    {"duration": "8 mins", "activity": "W8-7 Topic: Family/House\n- flashcards for TV, table, clock, door\n- show real objects"},
+                    {"duration": "2 mins", "activity": "Outro & Goodbye"}
+                ]
+            },
+            {
+                "title": "Penguin 2 (2Y-3Y)",
+                "time": "10:15 - 10:35",
+                "location": "Castanet @ Sakaemachi | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro song + monthly song"},
+                    {"duration": "13 mins", "activity": "W8-7 Topic: Family/House\n- family flash cards\n- ask \"Who is this?\" add hints"},
+                    {"duration": "2 mins", "activity": "Outro song & Goodbye"}
+                ]
+            },
+            {
+                "title": "Kangaroo (3Y-4Y)",
+                "time": "10:35 - 11:00",
+                "location": "Castanet @ Sakaemachi | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro: How are you?"},
+                    {"duration": "15 mins", "activity": "W8-7 Topic: Clothes\n- \"What are they wearing?\"\n- Ask colors: White shirt, blue pants"},
+                    {"duration": "10-15 mins", "activity": "Worksheet + pairing response\n- Where is a black shirt? White skirt?\n- Make them do worksheet\n- Outro"}
+                ]
+            },
+            {
+                "title": "Lesson Prep",
+                "time": "16:30 - 17:00",
+                "location": "Evening @ Maruyama | Trainer: Bon",
+                "plan": [
+                    {"duration": "30 mins", "activity": "Room setup\nLook at student cards & past performances\nReview W8-7 materials"}
+                ]
+            },
+            {
+                "title": "Class 5E with Kenji?",
+                "time": "17:00 - 17:50",
+                "location": "Evening @ Maruyama | Trainer: Bon",
+                "plan": [
+                    {"duration": "5-10 mins", "activity": "Question cards + game\n- practice interactions"},
+                    {"duration": "10 mins", "activity": "W8-7 Topic: Animals\n- Can it run fast? Yes/no\n- Is it black & white?\n- Where does it live?\n- Is it a zebra?"},
+                    {"duration": "5 mins", "activity": "Ice breaker game: animal charades"},
+                    {"duration": "10 mins", "activity": "Reading \"-AIL\" sound"},
+                    {"duration": "10-15 mins", "activity": "Worksheet (writing)"}
+                ]
+            },
+            {
+                "title": "Keito English Challenge",
+                "time": "18:00 - 18:50",
+                "location": "Evening @ Maruyama | Trainer: Bon",
+                "plan": [
+                    {"duration": "5-10 mins", "activity": "Conversational warm-up (question cards + game)"},
+                    {"duration": "10 mins", "activity": "New words"},
+                    {"duration": "10 mins", "activity": "W8-7 Topic (Disasters) questions"},
+                    {"duration": "5 mins", "activity": "Ice breaker game"},
+                    {"duration": "10 mins", "activity": "Reading / conversation practice"},
+                    {"duration": "5 mins", "activity": "Worksheet activity"}
+                ]
+            }
+        ],
+        "2026-02-19": [
+            {
+                "title": "Class 1E (30 mins)",
+                "time": "15:10 - 15:40",
+                "location": "Castanet Club (Sakaemachi) | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro song + monthly song"},
+                    {"duration": "10 mins", "activity": "Flash card drills"},
+                    {"duration": "10 mins", "activity": "Partner matching cards ? activity"},
+                    {"duration": "5 mins", "activity": "Outro"}
+                ]
+            },
+            {
+                "title": "Class 2E (30 mins)",
+                "time": "15:45 - 16:15",
+                "location": "Castanet Club (Sakaemachi) | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro song + warm-up"},
+                    {"duration": "10 mins", "activity": "Flash card drills: Clothes & Colors\n- What is the farmer wearing?"},
+                    {"duration": "10 mins", "activity": "Cards interactive activity"},
+                    {"duration": "5 mins", "activity": "Outro"}
+                ]
+            },
+            {
+                "title": "Class 3E (30 mins)",
+                "time": "16:20 - 16:50",
+                "location": "Castanet Club (Sakaemachi) | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro + warm-up"},
+                    {"duration": "10 mins", "activity": "Flashcard drills: Weather & actions"},
+                    {"duration": "10 mins", "activity": "Card activities"},
+                    {"duration": "5 mins", "activity": "Outro"}
+                ]
+            },
+            {
+                "title": "Class 4E (40 mins)",
+                "time": "16:55 - 17:35",
+                "location": "Castanet Club (Sakaemachi) | Trainer: Bon",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro"},
+                    {"duration": "10 mins", "activity": "Flashcard drills & Topic: Directions"},
+                    {"duration": "10 mins", "activity": "Reading \"DR\" sound"},
+                    {"duration": "10 mins", "activity": "Map directions (give time for worksheet)"},
+                    {"duration": "5 mins", "activity": "Worksheet"}
+                ]
+            }
+        ],
+        "2026-02-20": [
+            {
+                "title": "Combined Block?",
+                "time": "10:30 - 11:00",
+                "location": "Strawberry Shiroishi | Trainer: Sinha",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Intro + monthly song"},
+                    {"duration": "15 mins", "activity": "Flashcards: W8-7"},
+                    {"duration": "5 mins", "activity": "Matching game?"},
+                    {"duration": "5 mins", "activity": "Outro & Goodbye"}
+                ]
+            },
+            {
+                "title": "Blossom (4Y-5Y)",
+                "time": "13:00 - 13:50",
+                "location": "Shiseikan @ Susukino | Trainer: Sinha",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Warm-up Introductions"},
+                    {"duration": "15 mins", "activity": "W8-7 Topic: People & Clothes"},
+                    {"duration": "5 mins", "activity": "Ice-breaker game"},
+                    {"duration": "10 mins", "activity": "Reading \"AN\" sound"},
+                    {"duration": "15 mins", "activity": "Worksheet & outro (clean-up)"}
+                ]
+            },
+            {
+                "title": "Harvest (5Y-6Y)",
+                "time": "14:00 - 14:50",
+                "location": "Shiseikan @ Susukino | Trainer: Sinha",
+                "plan": [
+                    {"duration": "5 mins", "activity": "Warm-up + setup"},
+                    {"duration": "15 mins", "activity": "W8-7 Topic: Describing animals"},
+                    {"duration": "5 mins", "activity": "Game?"},
+                    {"duration": "10 mins", "activity": "Reading \"AIL\" sound"},
+                    {"duration": "15 mins", "activity": "Worksheet"}
+                ]
+            }
+        ],
+        "2026-02-21": [
+            {
+                "title": "Lesson Prep",
+                "time": "09:30 - 10:00",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "30 mins", "activity": "Room setup, sorting W8-1 flashcards, and reviewing the reading books (Super Dan, Drip Drop Drip)."}
+                ]
+            },
+            {
+                "title": "Class 2E",
+                "time": "10:00 - 10:50",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "Note", "activity": "Teacher Note: Since this is an \"E\" class, remember your golden rules: heavily hint at the answers and use lots of TPR!"},
+                    {"duration": "5-10 mins", "activity": "Question Cards and Game (Interactions)."},
+                    {"duration": "10 mins", "activity": "W8-1 Topic (People and Clothes).\nAsk, \"Who is wearing black pants and a white shirt?\" or \"What is the farmer wearing?\"\nImmediately offer hints if they pause (\"Say: Black pants? A white shirt?\")."},
+                    {"duration": "5 mins", "activity": "Icebreaker Game (A quick, action-based physical game to keep energy up)."},
+                    {"duration": "10 mins", "activity": "Reading. Read Super Dan the fix it man, The \"D\" book, and practice the \"an\" sound."},
+                    {"duration": "10-15 mins", "activity": "Worksheet (Writing practice).\nWalk around and assist; do not let them get frustrated if they don't understand right away."}
+                ]
+            },
+            {
+                "title": "Student Remarks",
+                "time": "10:50 - 11:00",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "10 mins", "activity": "Jot down notes on the 2E students while they pack up and transition."}
+                ]
+            },
+            {
+                "title": "Class 4E",
+                "time": "11:00 - 11:50",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "5-10 mins", "activity": "Question Cards and Game (Interactions)."},
+                    {"duration": "10 mins", "activity": "W8-1 Topic (Directions Giving and Asking).\nPractice the conversational flow: \"Excuse me, where is the bank? It is next to the train station. Go straight, it is on the left.\"\n(Use map flashcards or draw a quick map on the board)."},
+                    {"duration": "5 mins", "activity": "Icebreaker Game (A quick directional game like \"Simon Says\" but with left/right/straight)."},
+                    {"duration": "10 mins", "activity": "Reading. Read Drip, Drop, Drip and practice the \"Dr\" sound."},
+                    {"duration": "10-15 mins", "activity": "Worksheet (Writing practice/Map drawing)."}
+                ]
+            },
+            {
+                "title": "Student Remarks",
+                "time": "11:50 - 12:00",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "10 mins", "activity": "Write notes for 4E and prep the room for the final class."}
+                ]
+            },
+            {
+                "title": "Optional 3rd Class (Prepared for 3E)",
+                "time": "12:00 - 12:50",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "5-10 mins", "activity": "Question Cards and Game (Interactions)."},
+                    {"duration": "10 mins", "activity": "W8-1 Topic (Outside and Weather).\nTarget phrases: \"Is it stormy today? It's sunny, let's swim. It's rainy, let's watch T.V. Where are the flowers?\""},
+                    {"duration": "5 mins", "activity": "Icebreaker Game (Weather charades)."},
+                    {"duration": "10 mins", "activity": "Reading. Read I spell very well and practice the \"ell\" sound."},
+                    {"duration": "10-15 mins", "activity": "Worksheet (Writing practice)."}
+                ]
+            },
+            {
+                "title": "Final Remarks & Wrap-up",
+                "time": "12:50 - 13:00",
+                "location": "Morning Block | Trainer: Bon",
+                "plan": [
+                    {"duration": "10 mins", "activity": "Final progress notes and pack up for the day."}
+                ]
+            }
+        ]
+    };
+
+    // Smart-Loading Logic: Preserves your custom edits while automatically dropping in new updates
+    let classData = JSON.parse(localStorage.getItem('englishPlannerData_v3'));
+    
+    if (!classData || Object.keys(classData).length === 0) {
+        // If there's no data at all, load everything completely fresh
+        classData = defaultData;
+        localStorage.setItem('englishPlannerData_v3', JSON.stringify(classData));
+    } else if (!classData["2026-02-21"]) {
+        // SAFE INJECTION:
+        // If you already have data saved in your browser, this code ensures
+        // the new Feb 21 classes are injected WITHOUT deleting any edits you made to Feb 18/19/20!
+        classData["2026-02-21"] = defaultData["2026-02-21"];
+        localStorage.setItem('englishPlannerData_v3', JSON.stringify(classData));
+    }
+
+    function saveData() {
+        localStorage.setItem('englishPlannerData_v3', JSON.stringify(classData));
+    }
+
+    // App State Variables
+    let currentDate = new Date(2026, 1, 1); 
+    let selectedDateStr = null;
+    let selectedClassIndex = null;
+
+    // ========================================================
+    // --- CALENDAR LOGIC ---
+    // ========================================================
+    function renderCalendar() {
+        const daysContainer = document.getElementById('calendarDays');
+        daysContainer.innerHTML = '';
+        
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        document.getElementById('monthDisplay').textContent = `${monthNames[month]} ${year}`;
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            daysContainer.innerHTML += `<div class="day empty"></div>`;
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
+            dayDiv.textContent = i;
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            if (classData[dateStr] && classData[dateStr].length > 0) {
+                dayDiv.classList.add('has-classes'); 
+            }
+            if (dateStr === selectedDateStr) {
+                dayDiv.classList.add('selected'); 
+            }
+
+            dayDiv.onclick = () => {
+                selectedDateStr = dateStr;
+                renderCalendar(); 
+                showClassesForDate(dateStr);
+            };
+
+            daysContainer.appendChild(dayDiv);
+        }
+    }
+
+    function changeMonth(direction) {
+        currentDate.setMonth(currentDate.getMonth() + direction);
+        renderCalendar();
+    }
+
+    // ========================================================
+    // --- VIEW SWITCHING LOGIC ---
+    // ========================================================
+    function hideAllViews() {
+        document.getElementById('classesView').classList.add('hidden');
+        document.getElementById('lessonPlanView').classList.add('hidden');
+        document.getElementById('editPlanView').classList.add('hidden');
+    }
+
+    function showClassesView() {
+        hideAllViews();
+        document.getElementById('classesView').classList.remove('hidden');
+        if (selectedDateStr) showClassesForDate(selectedDateStr);
+    }
+
+    function showClassesForDate(dateStr) {
+        hideAllViews();
+        document.getElementById('classesView').classList.remove('hidden');
+        
+        const [y, m, d] = dateStr.split('-');
+        const niceDate = new Date(y, m-1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        
+        document.getElementById('selectedDateHeader').textContent = niceDate;
+        const container = document.getElementById('classesContainer');
+        container.innerHTML = '';
+
+        const classes = classData[dateStr];
+
+        if (!classes || classes.length === 0) {
+            container.innerHTML = `<div class="empty-state">No classes scheduled for this date.<br><br>Enjoy your day off, or click "+ Add Class" to create one!</div>`;
+            return;
+        }
+
+        classes.forEach((cls, index) => {
+            const card = document.createElement('div');
+            card.className = 'class-card';
+            card.innerHTML = `
+                <div class="class-time">⏰ ${cls.time || 'Time TBD'}</div>
+                <h3 class="class-title">${cls.title || 'Untitled Class'}</h3>
+                <div class="class-location">📍 ${cls.location || 'Location TBD'}</div>
+            `;
+            card.onclick = () => showLessonPlan(index);
+            container.appendChild(card);
+        });
+    }
+
+    function showLessonPlan(index) {
+        selectedClassIndex = index;
+        const cls = classData[selectedDateStr][index];
+        
+        hideAllViews();
+        document.getElementById('lessonPlanView').classList.remove('hidden');
+
+        document.getElementById('lpTitle').textContent = cls.title || 'Untitled Class';
+        document.getElementById('lpMeta').innerHTML = `<span>⏰ ${cls.time || 'TBD'}</span> <span>📍 ${cls.location || 'TBD'}</span>`;
+
+        const timeline = document.getElementById('lpTimeline');
+        timeline.innerHTML = '';
+
+        if (!cls.plan || cls.plan.length === 0) {
+            timeline.innerHTML = `<div class="empty-state">No schedule items added yet. Click "Edit Schedule" above to add activities.</div>`;
+            return;
+        }
+
+        // Dynamically creates elements to preserve new lines typed in the text area safely
+        cls.plan.forEach(step => {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'plan-step';
+            
+            const durDiv = document.createElement('div');
+            durDiv.className = 'step-duration';
+            durDiv.textContent = step.duration;
+            
+            // Highlight notes in orange
+            if (step.duration.toLowerCase().includes('note')) {
+                durDiv.classList.add('note-style');
+            }
+            
+            const actDiv = document.createElement('div');
+            actDiv.className = 'step-activity';
+            actDiv.textContent = step.activity;
+            
+            stepDiv.appendChild(durDiv);
+            stepDiv.appendChild(actDiv);
+            timeline.appendChild(stepDiv);
+        });
+    }
+
+    // ========================================================
+    // --- EDITING & SAVING LOGIC ---
+    // ========================================================
+    function addNewClass() {
+        if(!selectedDateStr) return alert("Please select a date on the calendar first!");
+        if(!classData[selectedDateStr]) classData[selectedDateStr] = [];
+        
+        // Push a blank template class
+        classData[selectedDateStr].push({ title: "", time: "", location: "", plan: [] });
+        selectedClassIndex = classData[selectedDateStr].length - 1;
+        
+        openEditMode(); // immediately jump into edit view
+    }
+
+    function openEditMode() {
+        hideAllViews();
+        document.getElementById('editPlanView').classList.remove('hidden');
+        
+        const cls = classData[selectedDateStr][selectedClassIndex];
+        
+        document.getElementById('editTitle').value = cls.title || '';
+        document.getElementById('editTime').value = cls.time || '';
+        document.getElementById('editLocation').value = cls.location || '';
+        
+        const stepsContainer = document.getElementById('editStepsContainer');
+        stepsContainer.innerHTML = '';
+        
+        if (cls.plan) {
+            cls.plan.forEach(step => addStepInput(step.duration, step.activity));
+        }
+    }
+
+    function addStepInput(duration = '', activity = '') {
+        const stepsContainer = document.getElementById('editStepsContainer');
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'edit-step';
+        
+        stepDiv.innerHTML = `
+            <button class="remove-step" onclick="this.parentElement.remove()">Remove</button>
+            <div class="form-row">
+                <div class="form-group" style="flex: 0.4;">
+                    <label>Duration</label>
+                    <input type="text" class="step-dur-input" placeholder="e.g. 10 mins or 'Note'">
+                </div>
+                <div class="form-group">
+                    <label>Activity Description</label>
+                    <textarea class="step-act-input" placeholder="What are we doing?"></textarea>
+                </div>
+            </div>
+        `;
+        
+        stepDiv.querySelector('.step-dur-input').value = duration;
+        stepDiv.querySelector('.step-act-input').value = activity;
+        
+        stepsContainer.appendChild(stepDiv);
+    }
+
+    function saveClass() {
+        const title = document.getElementById('editTitle').value.trim();
+        const time = document.getElementById('editTime').value.trim();
+        const location = document.getElementById('editLocation').value.trim();
+        
+        const plan = [];
+        const stepElements = document.querySelectorAll('.edit-step');
+        
+        stepElements.forEach(el => {
+            const dur = el.querySelector('.step-dur-input').value.trim();
+            const act = el.querySelector('.step-act-input').value.trim();
+            if (dur || act) plan.push({ duration: dur, activity: act });
+        });
+
+        // Save back to Data structure
+        classData[selectedDateStr][selectedClassIndex] = { title, time, location, plan };
+        
+        saveData(); // Save to Browser LocalStorage
+        renderCalendar(); // Refresh calendar dots
+        showLessonPlan(selectedClassIndex); // Go back to read mode
+    }
+
+    function deleteCurrentClass() {
+        if(confirm("Are you sure you want to delete this class entirely?")) {
+            classData[selectedDateStr].splice(selectedClassIndex, 1);
+            
+            if (classData[selectedDateStr].length === 0) {
+                delete classData[selectedDateStr];
+            }
+            
+            saveData();
+            renderCalendar();
+            showClassesView();
+        }
+    }
+
+    function cancelEdit() {
+        const cls = classData[selectedDateStr][selectedClassIndex];
+        // Clean up if the user hit "Add Class" but then canceled immediately
+        if (!cls.title && !cls.time && (!cls.plan || cls.plan.length === 0)) {
+            classData[selectedDateStr].splice(selectedClassIndex, 1);
+            if (classData[selectedDateStr].length === 0) delete classData[selectedDateStr];
+            showClassesView();
+        } else {
+            showLessonPlan(selectedClassIndex); // Return safely to read view
+        }
+    }
+
+    // Initialize calendar on load
+    renderCalendar();
+</script>
+
+</body>
+</html>
